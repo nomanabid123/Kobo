@@ -1,0 +1,15 @@
+KPI_DJANGO_DEBUG=False
+TEMPLATE_DEBUG=False
+#USE_X_FORWARDED_HOST=True
+
+ENKETO_VERSION=Express
+KPI_PREFIX=/
+KPI_BROKER_URL=redis://:ZrbFN2xDUILEFLtd7Mug@redis-main.kobo.mmis.private:6379/1
+
+KPI_MONGO_HOST=mongo.kobo.mmis.private
+KPI_MONGO_PORT=27017
+KPI_MONGO_NAME=formhub
+KPI_MONGO_USER=kobo
+KPI_MONGO_PASS=pq9raXk8FpzaotiiYpsA
+
+DJANGO_LANGUAGE_CODES=ar cs de-DE en es fr hi ku pl pt tr zh-hans

@@ -1,0 +1,8 @@
+.idea
+.run.conf
+.run.conf.*
+*.pyc
+__pycache__
+.pytest_cache/
+.tox
+*.egg-info
