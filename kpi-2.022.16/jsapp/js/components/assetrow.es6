@@ -18,6 +18,7 @@ import {formatTime} from 'utils';
 
 class AssetRow extends React.Component {
   constructor(props){
+    console.info('AssetRow props:', props);
     super(props);
     this.state = {
       isTagsInputVisible: false,
@@ -132,7 +133,7 @@ class AssetRow extends React.Component {
             {/* "title" column */}
             <bem.AssetRow__cell
               m={'title'}
-              className={['mdl-cell', this.props.asset_type == ASSET_TYPES.survey.id ? 'mdl-cell--5-col mdl-cell--4-col-tablet mdl-cell--2-col-phone' : 'mdl-cell--6-col mdl-cell--3-col-tablet mdl-cell--2-col-phone']}
+              className={['mdl-cell', this.props.asset_type == ASSET_TYPES.survey.id ? 'mdl-cell--4-col mdl-cell--4-col-tablet mdl-cell--2-col-phone' : 'mdl-cell--6-col mdl-cell--3-col-tablet mdl-cell--2-col-phone']}
             >
               { this.props.asset_type && (
                   this.props.asset_type == ASSET_TYPES.template.id ||
@@ -199,7 +200,13 @@ class AssetRow extends React.Component {
             >
               <span className='date date--modified'>{formatTime(this.props.date_modified)}</span>
             </bem.AssetRow__cell>
-
+          <bem.AssetRow__cell
+            m={'last_submission'}
+            key={'last_submission'}
+            className={['mdl-cell mdl-cell--2-col mdl-cell--2-col-tablet mdl-cell--1-col-phone']}
+          >
+            <span className='date date--modified'>{this.props.last_submission ? formatTime(this.props.last_submission) : '—'}</span>
+          </bem.AssetRow__cell>
             {/* "submission count" column for surveys */}
             { this.props.asset_type == ASSET_TYPES.survey.id &&
               <bem.AssetRow__cell

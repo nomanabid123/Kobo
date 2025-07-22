@@ -1,0 +1,14 @@
+Dockerfile
+node_modules
+jsapp/xlform/components
+jsapp/compiled
+jsapp/fonts
+staticfiles
+**/*.pyc
+webpack-stats.json
+locale
+.pytest_cache
+.db.sqlite3
+deployments.json
+celerybeat-schedule
+src/

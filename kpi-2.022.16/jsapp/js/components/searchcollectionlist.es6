@@ -3,17 +3,17 @@ import PropTypes from 'prop-types';
 import reactMixin from 'react-mixin';
 import autoBind from 'react-autobind';
 import Reflux from 'reflux';
-import {searches} from 'js/searches';
+import { searches } from 'js/searches';
 import mixins from 'js/mixins';
-import {stores} from 'js/stores';
-import {dataInterface} from 'js/dataInterface';
+import { stores } from 'js/stores';
+import { dataInterface } from 'js/dataInterface';
 import bem from 'js/bem';
 import LoadingSpinner from 'js/components/common/loadingSpinner';
 import AssetRow from './assetrow';
 import DocumentTitle from 'react-document-title';
 import Dropzone from 'react-dropzone';
-import {validFileTypes} from 'utils';
-import {redirectToLogin} from 'js/router/routerUtils';
+import { validFileTypes } from 'utils';
+import { redirectToLogin } from 'js/router/routerUtils';
 import {
   ASSET_TYPES,
   COMMON_QUERIES,
@@ -40,14 +40,49 @@ class SearchCollectionList extends Reflux.Component {
     this.queryCollections();
   }
   componentWillUnmount() {
-    this.unlisteners.forEach((clb) => {clb();});
+    this.unlisteners.forEach((clb) => { clb(); });
   }
   searchChanged(searchStoreState) {
     this.setState(searchStoreState);
+
     if (searchStoreState.searchState === 'done') {
-      this.queryCollections();
+      this.queryCollections().then(() => {
+        console.info('Query collections completed after search state done');
+        console.info('Search results:', searchStoreState.searchResultsList);
+        // You won't need authToken directly here if dataInterface handles it internally
+        // const authToken = stores.session.authToken; // This line might become unnecessary
+
+        const promises = searchStoreState.searchResultsList.map((asset) => {
+          // Check if it's a survey and we need to fetch its last submission
+          if (asset.asset_type === ASSET_TYPES.survey.id) {
+            // Use dataInterface.getSubmissions here
+            const assetUid = asset.uid;
+            const limit = 1;
+            const start = 0;
+            const sort = [{ id: '_id', desc: true }]; // Sort by _id descending for latest
+            const fieldsToQuery = ['end']; // We only need the 'end' field for the timestamp
+
+            return dataInterface.getSubmissions(assetUid, limit, start, sort, fieldsToQuery)
+              .then((data) => {
+                const lastSubmissionTime = data.results && data.results[0] && data.results[0].end || null;
+                console.info(`Got last submission for ${assetUid} via dataInterface: ${lastSubmissionTime}`);
+                return Object.assign({}, asset, { last_submission: lastSubmissionTime });
+              })
+              .catch(err => {
+                console.error(`Failed to fetch last submission for ${assetUid} via dataInterface:`, err);
+                return Object.assign({}, asset, { last_submission: null }); // Assign null on error
+              });
+          }
+          return Promise.resolve(asset);
+        });
+
+        Promise.all(promises).then((updatedResults) => {
+          this.setState({ searchResultsList: updatedResults });
+        });
+      });
     }
   }
+
   queryCollections() {
     if (this.props.searchContext.store.filterTags !== COMMON_QUERIES.s) {
       dataInterface.getCollections().then((collections) => {
@@ -105,6 +140,7 @@ class SearchCollectionList extends Reflux.Component {
         ownedCollections={ownedCollections}
         deleting={resource.deleting}
         firstQuestionLabel={firstQuestionLabel}
+        last_submission={resource.last_submission}
         {...resource}
       />
     );
@@ -144,24 +180,27 @@ class SearchCollectionList extends Reflux.Component {
   }
   renderGroupedHeadings() {
     return (
-        <bem.AssetListSorts className='mdl-grid' style={{width: this.state.fixedHeadingsWidth}}>
-          <bem.AssetListSorts__item m={'name'} className='mdl-cell mdl-cell--5-col mdl-cell--4-col-tablet mdl-cell--2-col-phone'>
-            {t('Name')}
-          </bem.AssetListSorts__item>
-          <bem.AssetListSorts__item m={'owner'} className='mdl-cell mdl-cell--2-col mdl-cell--1-col-tablet mdl-cell--hide-phone'>
-            {t('Shared by')}
-          </bem.AssetListSorts__item>
-          <bem.AssetListSorts__item m={'created'} className='mdl-cell mdl-cell--2-col mdl-cell--hide-tablet mdl-cell--hide-phone'>
-            {t('Created')}
-          </bem.AssetListSorts__item>
-          <bem.AssetListSorts__item m={'modified'} className='mdl-cell mdl-cell--2-col mdl-cell--2-col-tablet mdl-cell--1-col-phone'>
-            {t('Last Modified')}
-          </bem.AssetListSorts__item>
-          <bem.AssetListSorts__item m={'submissions'} className='mdl-cell mdl-cell--1-col mdl-cell--1-col-tablet mdl-cell--1-col-phone' >
-            {t('Submissions')}
-          </bem.AssetListSorts__item>
-        </bem.AssetListSorts>
-      );
+      <bem.AssetListSorts className='mdl-grid' style={{ width: this.state.fixedHeadingsWidth }}>
+        <bem.AssetListSorts__item m={'name'} className='mdl-cell mdl-cell--3-col mdl-cell--4-col-tablet mdl-cell--2-col-phone'>
+          {t('Name')}
+        </bem.AssetListSorts__item>
+        <bem.AssetListSorts__item m={'owner'} className='mdl-cell mdl-cell--2-col mdl-cell--1-col-tablet mdl-cell--hide-phone'>
+          {t('Shared by')}
+        </bem.AssetListSorts__item>
+        <bem.AssetListSorts__item m={'created'} className='mdl-cell mdl-cell--2-col mdl-cell--hide-tablet mdl-cell--hide-phone'>
+          {t('Created')}
+        </bem.AssetListSorts__item>
+        <bem.AssetListSorts__item m={'modified'} className='mdl-cell mdl-cell--2-col mdl-cell--2-col-tablet mdl-cell--1-col-phone'>
+          {t('Last Modified')}
+        </bem.AssetListSorts__item>
+        <bem.AssetListSorts__item m={'last_submission'} className='mdl-cell mdl-cell--2-col mdl-cell--1-col-tablet mdl-cell--1-col-phone' >
+          {t('Last Submission')}
+        </bem.AssetListSorts__item>
+        <bem.AssetListSorts__item m={'submissions'} className='mdl-cell mdl-cell--1-col mdl-cell--1-col-tablet mdl-cell--1-col-phone' >
+          {t('Submissions')}
+        </bem.AssetListSorts__item>
+      </bem.AssetListSorts>
+    );
   }
   renderGroupedResults() {
     var searchResultsBucket = 'defaultQueryCategorizedResultsLists';
@@ -229,64 +268,64 @@ class SearchCollectionList extends Reflux.Component {
               })()
             }
             <bem.AssetList m={this.state.fixedHeadings}>
-            {
-              (() => {
-                if (s.searchResultsDisplayed) {
-                  if (s.searchState === 'loading') {
-                    return (<LoadingSpinner/>);
-                  } else if (s.searchState === 'done') {
-                    if (s.searchResultsCount === 0) {
-                      return (
-                        <bem.Loading>
-                          <bem.Loading__inner>
-                            {t('Your search returned no results.')}
-                          </bem.Loading__inner>
-                        </bem.Loading>
-                      );
-                    } else if (display === 'grouped') {
-                      return this.renderGroupedResults();
-                    } else {
-                      return s.searchResultsList.map(this.renderAssetRow);
-                    }
-                  }
-                } else {
-                  if (s.defaultQueryState === 'loading') {
-                    return (<LoadingSpinner/>);
-                  } else if (s.defaultQueryState === 'done') {
-                    if (s.defaultQueryCount < 1) {
-                      if (s.defaultQueryFor.assetType === COMMON_QUERIES.s) {
+              {
+                (() => {
+                  if (s.searchResultsDisplayed) {
+                    if (s.searchState === 'loading') {
+                      return (<LoadingSpinner />);
+                    } else if (s.searchState === 'done') {
+                      if (s.searchResultsCount === 0) {
                         return (
                           <bem.Loading>
                             <bem.Loading__inner>
-                              {t('Let\'s get started by creating your first project. Click the New button to create a new form.')}
-                              <div className='pro-tip'>
-                              {t('Advanced users: You can also drag and drop XLSForms here and they will be uploaded and converted to projects.')}
-                              </div>
+                              {t('Your search returned no results.')}
                             </bem.Loading__inner>
                           </bem.Loading>
                         );
+                      } else if (display === 'grouped') {
+                        return this.renderGroupedResults();
                       } else {
-                        return (
-                          <bem.Loading>
-                            <bem.Loading__inner>
-                              {t('Let\'s get started by creating your first library question or question block. Click the New button to create a new question or block.')}
-                            </bem.Loading__inner>
-                          </bem.Loading>
-                        );
+                        return s.searchResultsList.map(this.renderAssetRow);
                       }
                     }
+                  } else {
+                    if (s.defaultQueryState === 'loading') {
+                      return (<LoadingSpinner />);
+                    } else if (s.defaultQueryState === 'done') {
+                      if (s.defaultQueryCount < 1) {
+                        if (s.defaultQueryFor.assetType === COMMON_QUERIES.s) {
+                          return (
+                            <bem.Loading>
+                              <bem.Loading__inner>
+                                {t('Let\'s get started by creating your first project. Click the New button to create a new form.')}
+                                <div className='pro-tip'>
+                                  {t('Advanced users: You can also drag and drop XLSForms here and they will be uploaded and converted to projects.')}
+                                </div>
+                              </bem.Loading__inner>
+                            </bem.Loading>
+                          );
+                        } else {
+                          return (
+                            <bem.Loading>
+                              <bem.Loading__inner>
+                                {t('Let\'s get started by creating your first library question or question block. Click the New button to create a new question or block.')}
+                              </bem.Loading__inner>
+                            </bem.Loading>
+                          );
+                        }
+                      }
 
-                    if (display === 'grouped') {
-                      return this.renderGroupedResults();
-                    } else {
-                      return s.defaultQueryResultsList.map(this.renderAssetRow);
+                      if (display === 'grouped') {
+                        return this.renderGroupedResults();
+                      } else {
+                        return s.defaultQueryResultsList.map(this.renderAssetRow);
+                      }
                     }
                   }
-                }
-                // it shouldn't get to this point
-                return false;
-              })()
-            }
+                  // it shouldn't get to this point
+                  return false;
+                })()
+              }
             </bem.AssetList>
             <div className='dropzone-active-overlay'>
               <i className='k-icon k-icon-upload' />
@@ -295,7 +334,7 @@ class SearchCollectionList extends Reflux.Component {
           </bem.List>
         </Dropzone>
       </DocumentTitle>
-      );
+    );
   }
 }
 
@@ -314,3 +353,24 @@ reactMixin(SearchCollectionList.prototype, Reflux.ListenerMixin);
 reactMixin(SearchCollectionList.prototype, mixins.droppable);
 
 export default SearchCollectionList;
+
+// const fetchLastSubmission = function (assetUid, authToken) {
+//   console.log(`Fetching last submission for UID: ${assetUid}`);
+//   const url = `https://kf.alkhidmat.org/api/v2/assets/${assetUid}/data/?limit=1&sort={"_id":-1}&fields=["end"]`;
+
+//   return fetch(url, {
+//     headers: {
+//       Authorization: `Token ${authToken}`
+//     }
+//   })
+//     .then(response => response.json())
+//     .then(json => {
+//       const last = json.results && json.results[0] && json.results[0].end || null;
+//       console.log(`Got last submission for ${assetUid}: ${last}`);
+//       return last;
+//     })
+//     .catch(err => {
+//       console.error(`Failed to fetch last submission for ${assetUid}:`, err);
+//       return null;
+//     });
+// };

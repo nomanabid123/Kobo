@@ -1,0 +1,11 @@
+[run]
+branch = True
+relative_files = True
+source =
+    hub
+    kpi
+    kobo
+omit =
+    */tests/*
+    */migrations/*
+    */management/commands/*
