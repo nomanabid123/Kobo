@@ -5,6 +5,7 @@ import autoBind from 'react-autobind';
 import { Link } from 'react-router';
 import bem from 'js/bem';
 import assetUtils from 'js/assetUtils';
+import {dataInterface} from 'js/dataInterface';
 import PopoverMenu from 'js/popoverMenu';
 import {stores} from '../stores';
 import mixins from '../mixins';
@@ -23,12 +24,38 @@ class AssetRow extends React.Component {
     this.state = {
       isTagsInputVisible: false,
       clearPopover: false,
-      popoverVisible: false
+      popoverVisible: false,
+      last_submission: null
     };
     this.escFunction = this.escFunction.bind(this);
     autoBind(this);
   }
 
+  componentDidMount() {
+    this.fetchLastSubmission();
+  }
+
+  fetchLastSubmission() {
+    const asset = this.props;
+
+    if (!asset || !asset.uid || !asset.asset_type) {
+      console.warn('AssetRow: No asset or asset type found for fetching last submission.');
+      return;
+    }
+
+    if (asset.asset_type === ASSET_TYPES.survey.id) {
+      dataInterface
+        .getSubmissions(asset.uid, 1, 0, [{ id: '_id', desc: true }], ['end'])
+        .then((res) => {
+          const lastSubmission = res?.results?.[0]?.end || null;
+          this.setState({ last_submission: lastSubmission });
+        })
+        .catch((err) => {
+          console.error('Failed to fetch last submission:', err);
+          this.setState({ last_submission: null });
+        });
+    }
+  }
   clickAssetButton (evt) {
     var clickedActionIcon = $(evt.target).closest('[data-action]').get(0);
     if (clickedActionIcon) {
@@ -205,7 +232,9 @@ class AssetRow extends React.Component {
             key={'last_submission'}
             className={['mdl-cell mdl-cell--2-col mdl-cell--2-col-tablet mdl-cell--1-col-phone']}
           >
-            <span className='date date--modified'>{this.props.last_submission ? formatTime(this.props.last_submission) : '—'}</span>
+            {/* <span className='date date--modified'>{this.props.last_submission ? formatTime(this.props.last_submission) : '—'}</span> */}
+            <span className='date date--modified'>{this.state.last_submission ? formatTime(this.state.last_submission) : '—'}</span>
+
           </bem.AssetRow__cell>
             {/* "submission count" column for surveys */}
             { this.props.asset_type == ASSET_TYPES.survey.id &&

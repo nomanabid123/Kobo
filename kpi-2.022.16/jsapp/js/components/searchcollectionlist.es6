@@ -23,6 +23,11 @@ import {
 
 class SearchCollectionList extends Reflux.Component {
   constructor(props) {
+    console.info('Initializing SearchCollectionList component');
+    console.info('Props:', props);
+    console.info('Stores:', stores);
+    console.info('Data Interface:', dataInterface);
+    
     super(props);
     this.state = {
       ownedCollections: [],
@@ -38,54 +43,73 @@ class SearchCollectionList extends Reflux.Component {
       this.searchStore.listen(this.searchChanged)
     );
     this.queryCollections();
+    this.queryProjectsWithLastSubmission();
   }
   componentWillUnmount() {
     this.unlisteners.forEach((clb) => { clb(); });
   }
+
+
+  queryProjectsWithLastSubmission() {
+    console.info('Querying projects with last submission');
+    console.info('Owned collections:', this.state.ownedCollections);
+    // this.queryCollections().then(() => {
+    //   console.info('Querying owned collections for last submissions');
+    //   console.info('Owned collections:', this.state.ownedCollections);
+    // })
+    // dataInterface.getCollections().then((collections) => {
+    //   console.info('Got collections:', collections);
+    //   const surveys = collections.results.filter(
+    //     (asset) =>
+    //       asset.asset_type === ASSET_TYPES.survey.id &&
+    //       asset.access_types?.includes(ACCESS_TYPES.owned)
+    //   );
+
+    //   const promises = surveys.map((asset) => {
+    //     const assetUid = asset.uid;
+    //     const limit = 1;
+    //     const start = 0;
+    //     const sort = [{ id: '_id', desc: true }];
+    //     const fieldsToQuery = ['end'];
+
+    //     return dataInterface
+    //       .getSubmissions(assetUid, limit, start, sort, fieldsToQuery)
+    //       .then((data) => {
+    //         console.info(`Got last submission for ${assetUid}`, data);
+    //         const lastSubmission = data.results?.[0]?.end || null;
+    //         return { ...asset, last_submission: lastSubmission };
+    //       })
+    //       .catch((err) => {
+    //         console.error(`Failed to get submissions for ${assetUid}`, err);
+    //         return { ...asset, last_submission: null };
+    //       });
+    //   });
+
+    //   Promise.all(promises).then((updatedAssets) => {
+    //     this.setState({
+    //       ownedCollections: updatedAssets, // optional if you still want collections
+    //       searchResultsList: updatedAssets,
+    //       searchResultsDisplayed: true,
+    //       searchState: 'done',
+    //       searchResultsCount: updatedAssets.length,
+    //     });
+    //   });
+    // });
+  }
+
+
   searchChanged(searchStoreState) {
     this.setState(searchStoreState);
 
     if (searchStoreState.searchState === 'done') {
-      this.queryCollections().then(() => {
-        console.info('Query collections completed after search state done');
-        console.info('Search results:', searchStoreState.searchResultsList);
-        // You won't need authToken directly here if dataInterface handles it internally
-        // const authToken = stores.session.authToken; // This line might become unnecessary
-
-        const promises = searchStoreState.searchResultsList.map((asset) => {
-          // Check if it's a survey and we need to fetch its last submission
-          if (asset.asset_type === ASSET_TYPES.survey.id) {
-            // Use dataInterface.getSubmissions here
-            const assetUid = asset.uid;
-            const limit = 1;
-            const start = 0;
-            const sort = [{ id: '_id', desc: true }]; // Sort by _id descending for latest
-            const fieldsToQuery = ['end']; // We only need the 'end' field for the timestamp
-
-            return dataInterface.getSubmissions(assetUid, limit, start, sort, fieldsToQuery)
-              .then((data) => {
-                const lastSubmissionTime = data.results && data.results[0] && data.results[0].end || null;
-                console.info(`Got last submission for ${assetUid} via dataInterface: ${lastSubmissionTime}`);
-                return Object.assign({}, asset, { last_submission: lastSubmissionTime });
-              })
-              .catch(err => {
-                console.error(`Failed to fetch last submission for ${assetUid} via dataInterface:`, err);
-                return Object.assign({}, asset, { last_submission: null }); // Assign null on error
-              });
-          }
-          return Promise.resolve(asset);
-        });
-
-        Promise.all(promises).then((updatedResults) => {
-          this.setState({ searchResultsList: updatedResults });
-        });
-      });
+      this.queryCollections()
     }
   }
 
   queryCollections() {
     if (this.props.searchContext.store.filterTags !== COMMON_QUERIES.s) {
       dataInterface.getCollections().then((collections) => {
+        console.info('Got collections:', collections);
         this.setState({
           ownedCollections: collections.results.filter((value) => {
             if (value.access_types && value.access_types.includes(ACCESS_TYPES.shared)) {
